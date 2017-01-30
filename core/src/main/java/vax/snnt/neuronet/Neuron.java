@@ -9,70 +9,66 @@ import java.util.function.DoubleConsumer;
 
  @author toor
  */
-public abstract class Neuron implements Processable {
-
-    static public class MidNeuron extends Neuron {
-        final private List<NeuronOutput> neuronOutputs;
-
-        public MidNeuron ( TransferFunction inputTransferFunction, TransferFunction outputTransferFunction ) {
-            this( inputTransferFunction, outputTransferFunction, new LinkedList<>() );
-        }
-
-        private /* public */ MidNeuron ( TransferFunction inputTransferFunction, TransferFunction outputTransferFunction,
-                        List<NeuronOutput> neuronOutputs ) {
-            super( inputTransferFunction, outputTransferFunction );
-            this.neuronOutputs = neuronOutputs;
-        }
-
-        @Override
-        public void releaseImpl () {
-            for( NeuronOutput neuronOutput : neuronOutputs ) {
-                neuronOutput.release();
-            }
-        }
-
-        public void addNeuronOutput ( Neuron n, double weight ) {
-            neuronOutputs.add( new NeuronOutput( n, weight ) );
-        }
-
-        public void addNeuronOutputs ( List<Neuron> ns, double[] weights ) {
-            if ( ns.isEmpty() || ns.size() != weights.length ) {
-                throw new IllegalArgumentException();
-            }
-
-            Iterator<Neuron> it = ns.listIterator();
-            int i = 0;
-            for( Neuron n = it.next(); it.hasNext(); n = it.next() ) {
-                neuronOutputs.add( new NeuronOutput( n, weights[i] ) );
-                i++;
-            }
-        }
-
-    }
-
-    static public class OutputNeuron extends Neuron {
-        private final DoubleConsumer outputConsumer;
-
-        public OutputNeuron ( TransferFunction inputTransferFunction, TransferFunction outputTransferFunction,
-                DoubleConsumer outputConsumer ) {
-            super( inputTransferFunction, outputTransferFunction );
-            this.outputConsumer = outputConsumer;
-        }
-
-        @Override
-        public void releaseImpl () {
-            outputConsumer.accept( getPotential() );
-        }
-
-    }
-
+public class Neuron implements Processable {
     // final private List<NeuronOutput> neuronInputs;
-    final private TransferFunction inputTransferFunction, outputTransferFunction;
+    private final List<NeuronOutput> neuronOutputs;
+    private final TransferFunction inputTransferFunction, outputTransferFunction;
+    transient private final DoubleConsumer outputConsumer;
+
     private double potential = 0;
 
     public Neuron ( TransferFunction inputTransferFunction, TransferFunction outputTransferFunction ) {
+        this( inputTransferFunction, outputTransferFunction, null );
+    }
+
+    public Neuron ( TransferFunction inputTransferFunction, TransferFunction outputTransferFunction, DoubleConsumer outputConsumer ) {
+        this( inputTransferFunction, outputTransferFunction, outputConsumer, new LinkedList<>() );
+    }
+
+    public Neuron ( TransferFunction inputTransferFunction, TransferFunction outputTransferFunction,
+            DoubleConsumer outputConsumer, List<NeuronOutput> neuronOutputs ) {
+        this.neuronOutputs = neuronOutputs;
+        this.outputConsumer = outputConsumer;
         this.inputTransferFunction = inputTransferFunction;
         this.outputTransferFunction = outputTransferFunction;
+    }
+
+    public Neuron mutate ( double ampChange, double shiftChange, double weightChange ) {
+        TransferFunction itf = inputTransferFunction.copy();
+        itf.ampIn += ampChange;
+        itf.ampOut += ampChange;
+        itf.shiftIn += shiftChange;
+        itf.shiftOut += shiftChange;
+
+        TransferFunction otf = outputTransferFunction.copy();
+        otf.ampIn += ampChange;
+        otf.ampOut += ampChange;
+        otf.shiftIn += shiftChange;
+        otf.shiftOut += shiftChange;
+
+        // TODO weights
+        Neuron neu = new Neuron( inputTransferFunction, outputTransferFunction );
+        for( NeuronOutput neuronOutput : neuronOutputs ) {
+            neu.addNeuronOutput( neuronOutput.neuron, neuronOutput.weight );
+        }
+        return neu;
+    }
+
+    public void addNeuronOutput ( Neuron n, double weight ) {
+        neuronOutputs.add( new NeuronOutput( n, weight ) );
+    }
+
+    public void addNeuronOutputs ( List<Neuron> ns, double[] weights ) {
+        if ( ns.isEmpty() || ns.size() != weights.length ) {
+            throw new IllegalArgumentException();
+        }
+
+        Iterator<Neuron> it = ns.listIterator();
+        int i = 0;
+        for( Neuron n = it.next(); it.hasNext(); n = it.next() ) {
+            neuronOutputs.add( new NeuronOutput( n, weights[i] ) );
+            i++;
+        }
     }
 
     public void add ( double inputPotential ) {
@@ -88,12 +84,15 @@ public abstract class Neuron implements Processable {
         return potential;
     }
 
-    public abstract void releaseImpl ();
-
     @Override
     public void process () {
         potential = outputTransferFunction.f( potential );
-        releaseImpl();
+        for( NeuronOutput neuronOutput : neuronOutputs ) {
+            neuronOutput.release();
+        }
+        if ( outputConsumer != null ) {
+            outputConsumer.accept( potential );
+        }
         potential = 0;
     }
 

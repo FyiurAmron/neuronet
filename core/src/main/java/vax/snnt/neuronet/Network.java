@@ -1,29 +1,41 @@
 package vax.snnt.neuronet;
 
-import static java.lang.Double.isNaN;
-import static java.lang.Math.abs;
 import java.util.ArrayList;
 import java.util.LinkedList;
 import java.util.List;
+import static java.lang.Double.isNaN;
+import static java.lang.Math.abs;
+import java.util.*;
+import vax.snnt.Main;
 
 /**
 
  @author toor
  */
 public class Network implements Processable {
-    private final LinkedList<Layer<? extends Neuron>> layers = new LinkedList<>();
+    private final LinkedList<NetLayer> layers = new LinkedList<>();
     private final ArrayList<Double> outputs = new ArrayList<>();
     private double distL1, distL2;
 
     public Network () {
     }
 
-    public void addLayer ( Layer<? extends Neuron> layer ) {
+    public Network mutate ( Random random, double mutationFactorAmp, double mutationFactorShift, double mutationFactorWeight ) {
+        for( NetLayer layer : layers ) {
+            for( Neuron neuron : layer.getNeurons() ) {
+                neuron.mutate( mutationFactorAmp * Rng.rnd(), mutationFactorShift * Rng.rnd(), mutationFactorWeight * Rng.rnd() );
+            }
+        }
+
+        return this;
+    }
+
+    public void addLayer ( NetLayer layer ) {
         layers.add( layer );
     }
 
     /*
-     public Layer<? extends Neuron> getInputLayer() {
+     public NetLayer<? extends Neuron> getInputLayer() {
      return layers.getFirst();
      }
      */
@@ -55,7 +67,7 @@ public class Network implements Processable {
     @Override
     public void process () {
         outputs.clear();
-        for( Layer<? extends Neuron> layer : layers ) {
+        for( NetLayer layer : layers ) {
             layer.process();
         }
     }

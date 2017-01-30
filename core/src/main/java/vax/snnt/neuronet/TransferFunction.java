@@ -9,18 +9,73 @@ import java.util.function.DoubleUnaryOperator;
  @author toor
  */
 public /* abstract */ class TransferFunction implements DoubleUnaryOperator {
-    protected double ampIn, ampOut;
-    protected DoubleUnaryOperator transferFunctionOperator;
+    protected double ampIn, ampOut, shiftIn, shiftOut;
+    protected final FunctionType functionType;
+    protected final transient DoubleUnaryOperator operator;
 
-    public TransferFunction ( double ampIn, double ampOut, DoubleUnaryOperator transferFunctionOperator ) {
+    public static enum FunctionType {
+        Lin( x -> x ),
+        Log( x -> ( x > 0 ) ? log( x + 1 ) : -log( -x + 1 ) ),
+        Exp( x -> ( x > 0 ) ? exp( x ) - 1 : -exp( -x ) + 1 ), //
+        ;
+        private final DoubleUnaryOperator lambda;
+
+        private FunctionType ( DoubleUnaryOperator lambda ) {
+            this.lambda = lambda;
+        }
+
+        public DoubleUnaryOperator getLambda () {
+            return lambda;
+        }
+    }
+
+    public static TransferFunction IDENTITY = new TransferFunction( 1, 1, 0, 0, FunctionType.Lin ) {
+        @Override
+        public double applyAsDouble ( double x ) {
+            return x;
+        }
+    };
+
+    public TransferFunction ( double ampIn, double ampOut, double shiftIn, double shiftOut, FunctionType functionType ) {
         this.ampIn = ampIn;
         this.ampOut = ampOut;
-        this.transferFunctionOperator = transferFunctionOperator;
+        this.shiftIn = shiftIn;
+        this.shiftOut = shiftOut;
+        this.functionType = functionType;
+        operator = functionType.getLambda();
+    }
+
+    private TransferFunction ( double ampIn, double ampOut, double shiftIn, double shiftOut, DoubleUnaryOperator operator ) {
+        this.ampIn = ampIn;
+        this.ampOut = ampOut;
+        this.shiftIn = shiftIn;
+        this.shiftOut = shiftOut;
+        functionType = null;
+        this.operator = operator;
+    }
+
+    private TransferFunction ( double ampIn, double ampOut, double shiftIn, double shiftOut,
+            FunctionType functionType, DoubleUnaryOperator operator ) {
+        this.ampIn = ampIn;
+        this.ampOut = ampOut;
+        this.shiftIn = shiftIn;
+        this.shiftOut = shiftOut;
+        this.functionType = functionType;
+        this.operator = operator;
+    }
+
+    public TransferFunction ( TransferFunction transferFunction ) {
+        this( transferFunction.ampIn, transferFunction.ampOut, transferFunction.shiftIn, transferFunction.shiftOut,
+                transferFunction.functionType, transferFunction.operator );
+    }
+
+    public TransferFunction copy () {
+        return new TransferFunction( this );
     }
 
     @Override
     public double applyAsDouble ( double x ) {
-        return ampOut * transferFunctionOperator.applyAsDouble( ampIn * x );
+        return ampOut * operator.applyAsDouble( ampIn * x + shiftIn ) + shiftOut;
     }
 
     public double f ( double x ) {
@@ -30,46 +85,4 @@ public /* abstract */ class TransferFunction implements DoubleUnaryOperator {
     public static abstract class BaseOp implements DoubleUnaryOperator {
         public final String ID = getClass().getSimpleName();
     }
-
-    public static class LinOp extends BaseOp {
-        @Override
-        public double applyAsDouble ( double x ) {
-            return ( x > 0 ) ? log( x + 1 ) : -log( -x + 1 );
-        }
-    }
-
-    public static class LogOp extends BaseOp {
-        @Override
-        public double applyAsDouble ( double x ) {
-            return ( x > 0 ) ? log( x + 1 ) : -log( -x + 1 );
-        }
-    }
-
-    public static class ExpOp extends BaseOp {
-        @Override
-        public double applyAsDouble ( double x ) {
-            return ( x > 0 ) ? exp( x ) - 1 : -exp( -x ) + 1;
-        }
-    }
-
-    @Deprecated
-    public static class Lin extends TransferFunction {
-        public Lin ( double ampIn, double ampOut ) {
-            super( ampIn, ampOut, x -> x );
-        }
-    };
-
-    @Deprecated
-    public static class Log extends TransferFunction {
-        public Log ( double ampIn, double ampOut ) {
-            super( ampIn, ampOut, x -> ( x > 0 ) ? log( x + 1 ) : -log( -x + 1 ) );
-        }
-    };
-
-    @Deprecated
-    public static class Exp extends TransferFunction {
-        public Exp ( double ampIn, double ampOut ) {
-            super( ampIn, ampOut, x -> ( x > 0 ) ? exp( x ) - 1 : -exp( -x ) + 1 );
-        }
-    };
 }
