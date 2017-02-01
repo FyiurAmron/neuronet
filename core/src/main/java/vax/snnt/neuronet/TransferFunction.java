@@ -82,7 +82,8 @@ public /* abstract */ class TransferFunction implements DoubleUnaryOperator {
         return applyAsDouble( x );
     }
 
-    public static abstract class BaseOp implements DoubleUnaryOperator {
-        public final String ID = getClass().getSimpleName();
+    @Override
+    public String toString () {
+        return ( functionType == null ) ? "?" : "" + functionType;
     }
 }

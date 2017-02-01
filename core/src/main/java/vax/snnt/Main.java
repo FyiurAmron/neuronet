@@ -6,6 +6,7 @@ import java.util.*;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
 import vax.snnt.neuronet.*;
+import static vax.snnt.neuronet.Misc.*;
 import static vax.snnt.neuronet.Rng.rnd;
 import static vax.snnt.neuronet.TransferFunction.*;
 
@@ -24,18 +25,31 @@ public class Main {
 
     // 0-layer network
     public static void test1 () {
+        Network network = new Network();
+
         Neuron inN = new Neuron(
                 new TransferFunction( 0.5, 0.5, 0, 0, FunctionType.Lin ),
                 new TransferFunction( 2, 2, 0, 0, FunctionType.Lin ) );
         Neuron outN = new Neuron(
                 new TransferFunction( 0.25, 2, 0, 0, FunctionType.Lin ),
-                new TransferFunction( 0.5, 4, 0, 0, FunctionType.Lin ),
-                System.out::println );
-        inN.addNeuronOutput( outN, 2.0 );
+                new TransferFunction( 0.5, 4, 0, 0, FunctionType.Lin ) );
 
+        network.addOutputConsumer( outN, System.out::println );
+
+        Layer inputLayer = new Layer();
+        Layer outputLayer = new Layer();
+
+        network.addLayer( inputLayer );
+        network.addLayer( outputLayer );
+
+        int inNr = network.addNeuron( inN, inputLayer );
+        int outNr = network.addNeuron( outN, outputLayer );
+        network.addConnection( inNr, outNr, 2.0 );
         inN.add( 0.42 );
-        inN.process();
-        outN.process(); // 0.84
+
+        network.process();
+
+        // 0.84
     }
 
     // 1-layer network
@@ -45,30 +59,30 @@ public class Main {
                 new TransferFunction( 2, 2, 0, 0, FunctionType.Lin ) );
         Neuron outN = new Neuron(
                 new TransferFunction( 0.25, 2, 0, 0, FunctionType.Lin ),
-                new TransferFunction( 0.5, 4, 0, 0, FunctionType.Lin ),
-                System.out::println );
+                new TransferFunction( 0.5, 4, 0, 0, FunctionType.Lin ) );
 
-        NetLayer midLayer = new NetLayer();
-        for( int i = 0; i < 10; i++ ) {
-            Neuron neuron = new Neuron( IDENTITY, IDENTITY );
-            midLayer.addNeuron( neuron );
-        }
-
-        NetLayer inputLayer = new NetLayer();
-        inputLayer.addNeuron( inN );
-
-        NetLayer outputLayer = new NetLayer();
-        outputLayer.addNeuron( outN );
-
-        for( Neuron neuron : midLayer.getNeurons() ) {
-            inN.addNeuronOutput( neuron, 1.0 );
-            neuron.addNeuronOutput( outN, 0.05 );
-        }
+        Layer inputLayer = new Layer();
+        Layer midLayer = new Layer();
+        Layer outputLayer = new Layer();
 
         Network network = new Network();
         network.addLayer( inputLayer );
         network.addLayer( midLayer );
         network.addLayer( outputLayer );
+
+        network.addOutputConsumer( outN, System.out::println );
+
+        int inNr = network.addNeuron( inN, inputLayer );
+        for( int i = 0; i < 10; i++ ) {
+            Neuron neuron = new Neuron( IDENTITY, IDENTITY );
+            network.addNeuron( neuron, midLayer );
+        }
+        int outNr = network.addNeuron( outN, outputLayer );
+
+        for( Neuron neuron : network.layerIterable( midLayer ) ) {
+            network.addConnection( inN, neuron, 1.0 );
+            network.addConnection( neuron, outN, 0.05 );
+        }
 
         inN.add( 0.42 );
         network.process();
@@ -82,43 +96,42 @@ public class Main {
                 new TransferFunction( 2, 2, 0, 0, FunctionType.Lin ) );
         Neuron outN = new Neuron(
                 new TransferFunction( 0.25, 2, 0, 0, FunctionType.Lin ),
-                new TransferFunction( 0.5, 4, 0, 0, FunctionType.Lin ),
-                System.out::println );
+                new TransferFunction( 0.5, 4, 0, 0, FunctionType.Lin ) );
 
-        NetLayer midLayer1 = new NetLayer();
-        for( int i = 0; i < 10; i++ ) {
-            Neuron neuron = new Neuron( IDENTITY, IDENTITY );
-            midLayer1.addNeuron( neuron );
-        }
-
-        NetLayer midLayer2 = new NetLayer();
-        for( int i = 0; i < 10; i++ ) {
-            Neuron neuron = new Neuron( IDENTITY, IDENTITY );
-            midLayer2.addNeuron( neuron );
-        }
-
-        NetLayer inputLayer = new NetLayer();
-        inputLayer.addNeuron( inN );
-
-        NetLayer outputLayer = new NetLayer();
-        outputLayer.addNeuron( outN );
-
-        for( Neuron neuron : midLayer1.getNeurons() ) {
-            inN.addNeuronOutput( neuron, 1.0 );
-            for( Neuron neuron2 : midLayer2.getNeurons() ) {
-                neuron.addNeuronOutput( neuron2, 0.1 );
-            }
-        }
-
-        for( Neuron neuron : midLayer2.getNeurons() ) {
-            neuron.addNeuronOutput( outN, 0.05 );
-        }
+        Layer inputLayer = new Layer();
+        Layer midLayer1 = new Layer();
+        Layer midLayer2 = new Layer();
+        Layer outputLayer = new Layer();
 
         Network network = new Network();
         network.addLayer( inputLayer );
         network.addLayer( midLayer1 );
         network.addLayer( midLayer2 );
         network.addLayer( outputLayer );
+
+        network.addOutputConsumer( outN, System.out::println );
+
+        network.addNeuron( inN, inputLayer );
+        for( int i = 0; i < 10; i++ ) {
+            Neuron neuron = new Neuron( IDENTITY, IDENTITY );
+            network.addNeuron( neuron, midLayer1 );
+        }
+        for( int i = 0; i < 10; i++ ) {
+            Neuron neuron = new Neuron( IDENTITY, IDENTITY );
+            network.addNeuron( neuron, midLayer2 );
+        }
+        network.addNeuron( outN, outputLayer );
+
+        for( Neuron neuron : network.layerIterable( midLayer1 ) ) {
+            network.addConnection( inN, neuron, 1.0 );
+            for( Neuron neuron2 : network.layerIterable( midLayer2 ) ) {
+                network.addConnection( neuron, neuron2, 0.1 );
+            }
+        }
+
+        for( Neuron neuron : network.layerIterable( midLayer2 ) ) {
+            network.addConnection( neuron, outN, 0.05 );
+        }
 
         inN.add( 0.42 );
         network.process();
@@ -129,64 +142,56 @@ public class Main {
         Network network = new Network();
 
         Neuron inN = new Neuron( IDENTITY, IDENTITY );
-        Neuron outN = new Neuron( IDENTITY, IDENTITY,
-                network::collectOutput );
+        Neuron outN = new Neuron( IDENTITY, IDENTITY );
 
         int neuronsInLayer = 10;
 
-        NetLayer midLayer1 = new NetLayer();
-        for( int i = 0; i < neuronsInLayer; i++ ) {
-            Neuron neuron = new Neuron(
-                    new TransferFunction( rnd(), rnd(), 0, 0, FunctionType.Lin ),
-                    new TransferFunction( rnd(), rnd(), 0, 0, FunctionType.Lin ) );
-            midLayer1.addNeuron( neuron );
-        }
-
-        NetLayer midLayer2 = new NetLayer();
-        for( int i = 0; i < neuronsInLayer; i++ ) {
-            Neuron neuron = new Neuron(
-                    new TransferFunction( rnd(), rnd(), 0, 0, FunctionType.Lin ),
-                    new TransferFunction( rnd(), rnd(), 0, 0, FunctionType.Lin ) );
-            midLayer2.addNeuron( neuron );
-        }
-
-        NetLayer inputLayer = new NetLayer();
-        inputLayer.addNeuron( inN );
-
-        NetLayer outputLayer = new NetLayer();
-        outputLayer.addNeuron( outN );
-
-        for( Neuron neuron : midLayer1.getNeurons() ) {
-            inN.addNeuronOutput( neuron, 1.0 );
-            for( Neuron neuron2 : midLayer2.getNeurons() ) {
-                neuron.addNeuronOutput( neuron2, 2.0 / neuronsInLayer * Rng.nextDouble() );
-            }
-        }
-
-        for( Neuron neuron : midLayer2.getNeurons() ) {
-            neuron.addNeuronOutput( outN, 2.0 / neuronsInLayer * Rng.nextDouble() );
-        }
+        Layer inputLayer = new Layer();
+        Layer midLayer1 = new Layer();
+        Layer midLayer2 = new Layer();
+        Layer outputLayer = new Layer();
 
         network.addLayer( inputLayer );
         network.addLayer( midLayer1 );
         network.addLayer( midLayer2 );
         network.addLayer( outputLayer );
 
+        network.addNeuron( inN, inputLayer );
+        for( int i = 0; i < neuronsInLayer; i++ ) {
+            Neuron neuron = new Neuron(
+                    new TransferFunction( rnd(), rnd(), 0, 0, FunctionType.Lin ),
+                    new TransferFunction( rnd(), rnd(), 0, 0, FunctionType.Lin ) );
+            network.addNeuron( neuron, midLayer1 );
+        }
+        for( int i = 0; i < neuronsInLayer; i++ ) {
+            Neuron neuron = new Neuron(
+                    new TransferFunction( rnd(), rnd(), 0, 0, FunctionType.Lin ),
+                    new TransferFunction( rnd(), rnd(), 0, 0, FunctionType.Lin ) );
+            network.addNeuron( neuron, midLayer2 );
+        }
+        network.addNeuron( outN, outputLayer );
+        network.addToOutputs( outN );
+        //network.addOutputConsumer( outN, network::collectOutput );
+        
+        for( Neuron neuron : network.layerIterable( midLayer1 ) ) {
+            network.addConnection( inN, neuron, 1.0 );
+            for( Neuron neuron2 : network.layerIterable( midLayer2 ) ) {
+                network.addConnection( neuron, neuron2, 2.0 / neuronsInLayer * Rng.nextDouble() );
+            }
+        }
+
+        for( Neuron neuron : network.layerIterable( midLayer2 ) ) {
+            network.addConnection( neuron, outN, 2.0 / neuronsInLayer * Rng.nextDouble() );
+        }
+
         return network;
     }
 
     // 2-layer network population (10k)
     public static void test4 () {
-        double[][] inputs = {
-            { -1.0 }, { -0.9 }, { -0.8 }, { -0.7 }, { -0.6 }, { -0.5 }, { -0.4 }, { -0.3 }, { -0.2 }, { -0.1 },
-            { 0 },
-            { 0.1 }, { 0.2 }, { 0.3 }, { 0.4 }, { 0.5 }, { 0.6 }, { 0.7 }, { 0.8 }, { 0.9 }, { 1.0 }
-        };
-        double[][] expectedOutputs = {
-            { -1.0 }, { -1.0 }, { -1.0 }, { -1.0 }, { -1.0 }, { -1.0 }, { -1.0 }, { -1.0 }, { -1.0 }, { -1.0 },
-            { 0 },
-            { 1.0 }, { 1.0 }, { 1.0 }, { 1.0 }, { 1.0 }, { 1.0 }, { 1.0 }, { 1.0 }, { 1.0 }, { 1.0 }
-        };
+        double[][] inputs = valuesLinear1;
+        double[][] expectedOutputs = valuesStep1;
+
         int inputCount = inputs.length;
         int popCount = 10_000, bestCount = 100;
 
@@ -273,64 +278,52 @@ public class Main {
         Network network = new Network();
 
         Neuron inN = new Neuron( IDENTITY, IDENTITY );
-        Neuron outN = new Neuron( IDENTITY, IDENTITY,
-                network::collectOutput );
+        Neuron outN = new Neuron( IDENTITY, IDENTITY );
 
         int neuronsInLayer1 = 5, neuronsInLayer2 = 5;
 
-        NetLayer midLayer1 = new NetLayer();
-        for( int i = 0; i < neuronsInLayer1; i++ ) {
-            Neuron neuron = new Neuron( createRandomTransferFunction(), createRandomTransferFunction() );
-            midLayer1.addNeuron( neuron );
-        }
-
-        NetLayer midLayer2 = new NetLayer();
-        for( int i = 0; i < neuronsInLayer2; i++ ) {
-            Neuron neuron = new Neuron( createRandomTransferFunction(), createRandomTransferFunction() );
-            midLayer2.addNeuron( neuron );
-        }
-
-        NetLayer inputLayer = new NetLayer();
-        inputLayer.addNeuron( inN );
-
-        NetLayer outputLayer = new NetLayer();
-        outputLayer.addNeuron( outN );
-
-        for( Neuron neuron : midLayer1.getNeurons() ) {
-            inN.addNeuronOutput( neuron, 1.0 );
-            for( Neuron neuron2 : midLayer2.getNeurons() ) {
-                //neuron.addNeuronOutput( neuron2, 2.0 / neuronsInLayer1 * Rng.nextDouble()  );
-                neuron.addNeuronOutput( neuron2, 1.0 / neuronsInLayer1 );
-            }
-        }
-
-        for( Neuron neuron : midLayer2.getNeurons() ) {
-            //neuron.addNeuronOutput( outN, 2.0 / neuronsInLayer2 * Rng.nextDouble()  );
-            neuron.addNeuronOutput( outN, 1.0 / neuronsInLayer2 );
-        }
+        Layer inputLayer = new Layer();
+        Layer midLayer1 = new Layer();
+        Layer midLayer2 = new Layer();
+        Layer outputLayer = new Layer();
 
         network.addLayer( inputLayer );
         network.addLayer( midLayer1 );
         network.addLayer( midLayer2 );
         network.addLayer( outputLayer );
 
+        network.addNeuron( inN, inputLayer );
+        for( int i = 0; i < neuronsInLayer1; i++ ) {
+            Neuron neuron = new Neuron( createRandomTransferFunction(), createRandomTransferFunction() );
+            network.addNeuron( neuron, midLayer1 );
+        }
+        for( int i = 0; i < neuronsInLayer2; i++ ) {
+            Neuron neuron = new Neuron( createRandomTransferFunction(), createRandomTransferFunction() );
+            network.addNeuron( neuron, midLayer2 );
+        }
+        network.addNeuron( outN, outputLayer );
+        network.addToOutputs( outN );
+        //network.addOutputConsumer( outN, network::collectOutput );
+
+        for( Neuron neuron : network.layerIterable( midLayer1 ) ) {
+            network.addConnection( inN, neuron, 1.0 );
+            for( Neuron neuron2 : network.layerIterable( midLayer2 ) ) {
+                //neuron.addConnection( neuron2, 2.0 / neuronsInLayer1 * Rng.nextDouble()  );
+                network.addConnection( neuron, neuron2, 1.0 / neuronsInLayer1 );
+            }
+        }
+
+        for( Neuron neuron : network.layerIterable( midLayer2 ) ) {
+            //neuron.addConnection( outN, 2.0 / neuronsInLayer2 * Rng.nextDouble()  );
+            network.addConnection( neuron, outN, 1.0 / neuronsInLayer2 );
+        }
+
         return network;
     }
 
-    private static double[][] valuesLinear = {
-        { -1.0 }, { -0.9 }, { -0.8 }, { -0.7 }, { -0.6 }, { -0.5 }, { -0.4 }, { -0.3 }, { -0.2 }, { -0.1 },
-        { 0 },
-        { 0.1 }, { 0.2 }, { 0.3 }, { 0.4 }, { 0.5 }, { 0.6 }, { 0.7 }, { 0.8 }, { 0.9 }, { 1.0 }
-    };
-    private static double[][] valuesStep = {
-        { -1.0 }, { -1.0 }, { -1.0 }, { -1.0 }, { -1.0 }, { -1.0 }, { -1.0 }, { -1.0 }, { -1.0 }, { -1.0 },
-        { 0 },
-        { 1.0 }, { 1.0 }, { 1.0 }, { 1.0 }, { 1.0 }, { 1.0 }, { 1.0 }, { 1.0 }, { 1.0 }, { 1.0 }
-    };
-
     public static void test5 () {
-        double[][] inputs = valuesLinear;
-        double[][] expectedOutputs = valuesStep;
+        double[][] inputs = valuesLinear1;
+        double[][] expectedOutputs = valuesStep1;
 
         int inputCount = inputs.length;
         int popCount = 100_000, bestCount = 100;
@@ -387,13 +380,13 @@ public class Main {
         gb.setPrettyPrinting();
         Gson gson = gb.create();
 
-        double[][] inputs = valuesLinear;
-        double[][] expectedOutputs = valuesLinear;
+        double[][] inputs = valuesLinear2;
+        double[][] expectedOutputs = valuesStep2;
 
         int inputCount = inputs.length;
         int popCount = 10_000, bestCount = 100;
 
-        Rng.rndMax = 5.0;
+        Rng.rndMax = 3.5;
         System.out.println( "Rng.rndMax = " + Rng.rndMax );
         ArrayList<Network> population = new ArrayList<>();
         for( int i = 0; i < popCount; i++ ) {
@@ -438,9 +431,11 @@ public class Main {
         int mutations = popCount / bestCount;
         for( Network network : population.subList( 0, bestCount ) ) {
             newPopulation.add( network );
-            for( int j = 0; j < mutations; j++ ) {
-                newPopulation.add( network.mutate( Rng.rng, 0.1, 0.1, 0.1 ) );
-            }
+            /*
+             for( int j = 0; j < mutations; j++ ) {
+             newPopulation.add( network.mutate( Rng.rng, 0.1, 0.1, 0.1 ) );
+             }
+             */
         }
         population = newPopulation;
         // TODO mix/mutate population properly
@@ -465,27 +460,33 @@ public class Main {
         // TODO save weighs
         double[] inputArr = { 0 };
         try ( PrintWriter out = new PrintWriter( "output/wideBestResults.txt" ); ) {
-            out.println( "IN,OUT" );
+            //out.println( "IN,OUT" );
+            out.println( "data = {" );
             for( double d = -10; d < 10; d = Math.round( ( d + 0.01 ) * 100 ) / 100.0 ) {
                 inputArr[0] = d;
                 bestNetwork.addInputs( inputArr );
                 bestNetwork.process();
-                double output = bestNetwork.getOutputs()[0];
-                out.println( d + "," + output );
+                double output = Math.round( bestNetwork.getOutputs()[0] * 1000 ) / 1000.0;
+                //out.println( d + "," + output );
+                out.println( "{" + d + "," + output + "}," );
             }
+            out.println( "{}};" );
         } catch (FileNotFoundException ex) {
             throw new RuntimeException( ex );
         }
 
         try ( PrintWriter out = new PrintWriter( "output/wideWorstResults.txt" ); ) {
-            out.println( "IN,OUT" );
+            //out.println( "IN,OUT" );
+            out.println( "data = {" );
             for( double d = -10; d < 10; d += 0.01 ) {
                 inputArr[0] = d;
                 worstNetwork.addInputs( inputArr );
                 worstNetwork.process();
                 double output = worstNetwork.getOutputs()[0];
-                out.println( d + "," + output );
+                //out.println( d + "," + output );
+                out.println( "{" + d + "," + output + "}," );
             }
+            out.println( "};" );
         } catch (FileNotFoundException ex) {
             throw new RuntimeException( ex );
         }
