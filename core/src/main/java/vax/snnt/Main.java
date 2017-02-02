@@ -405,7 +405,7 @@ public class Main {
 
         int inputCount = inputs.length;
         int popCount = 10_000, bestCount = 100;
-        int ITERATIONS = 10;
+        int ITERATIONS = 20;
 
         //int xRange = 1000, yRange = 1000;
         int xRange = 500, yRange = 500;
@@ -478,7 +478,7 @@ public class Main {
             for( Network network : population.subList( 0, bestCount ) ) {
                 newPopulation.add( network );
                 for( int j = 0; j < mutations; j++ ) {
-                    newPopulation.add( network.copy().mutate( /* Rng.rng, */ 0.1, 0.1, 0.01 ) );
+                    newPopulation.add( network.copy().mutate( /* Rng.rng, */ 0.025, 0.025, 0.001 ) );
                 }
             }
             population = newPopulation;
