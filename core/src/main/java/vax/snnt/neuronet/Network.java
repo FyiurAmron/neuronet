@@ -14,7 +14,7 @@ import java.util.function.DoubleConsumer;
  */
 public class Network implements Processable {
     private final ArrayList<Neuron> neurons = new ArrayList<>();
-    private final HashMap<Neuron, Integer> neuronMap = new HashMap<>();
+    private transient final HashMap<Neuron, Integer> neuronMap = new HashMap<>(); // TODO proper deserialization for it
     private final HashMap<Integer, HashMap<Integer, Double>> neuronInputs = new HashMap<>();
     private final HashMap<Integer, HashMap<Integer, Double>> neuronOutputs = new HashMap<>();
     private final ArrayList<Layer> layers = new ArrayList<>(); // may be shared in general though
@@ -23,8 +23,8 @@ public class Network implements Processable {
 
     private transient final HashMap<Integer, DoubleConsumer> outputNeuronConsumers = new HashMap<>();
 
-    private /* transient */ final ArrayList<Double> outputs = new ArrayList<>();
-    private /* transient */ double distL1, distL2;
+    private transient final ArrayList<Double> outputs = new ArrayList<>();
+    private transient double distL1, distL2;
 
     public Network () {
     }
@@ -60,38 +60,33 @@ public class Network implements Processable {
         return new Network( this );
     }
 
-    /*
-     public Network mutate ( Random random, double mutationFactorAmp, double mutationFactorShift, double mutationFactorWeight ) {
-     Network newNetwork = new Network();
+    public Network mutate ( /* Random random, */ double mutationFactorAmp, double mutationFactorShift, double mutationFactorWeight ) {
+        for( Neuron neuron : neurons ) {
+            TransferFunction itf = neuron.inputTransferFunction;
+            itf.ampIn += Rng.rnd() * mutationFactorAmp;
+            itf.ampOut += Rng.rnd() * mutationFactorAmp;
+            itf.shiftIn += Rng.rnd() * mutationFactorShift;
+            itf.shiftOut += Rng.rnd() * mutationFactorShift;
 
-     for( Neuron neuron : neurons ) {
-     neuron.mutate( mutationFactorAmp * Rng.rnd(), mutationFactorShift * Rng.rnd(), mutationFactorWeight * Rng.rnd() );
-     }
+            TransferFunction otf = neuron.outputTransferFunction;
+            otf.ampIn += Rng.rnd() * mutationFactorAmp;
+            otf.ampOut += Rng.rnd() * mutationFactorAmp;
+            otf.shiftIn += Rng.rnd() * mutationFactorShift;
+            otf.shiftOut += Rng.rnd() * mutationFactorShift;
 
-     return this;
-     }
+            for( Entry<Integer, HashMap<Integer, Double>> entry : neuronOutputs.entrySet() ) {
+                int a = entry.getKey();
+                for( Entry<Integer, Double> entry2 : entry.getValue().entrySet() ) {
+                    int b = entry2.getKey();
+                    double newValue = entry2.getValue() + Rng.rnd() * mutationFactorWeight;
+                    entry2.setValue( newValue );
+                    neuronInputs.get( b ).put( a, newValue );
+                }
+            }
+        }
+        return this; // for call chaining
+    }
 
-     public void mutate ( Neuron neuron, double ampChange, double shiftChange, double weightChange ) {
-     TransferFunction itf = inputTransferFunction.copy();
-     itf.ampIn += ampChange;
-     itf.ampOut += ampChange;
-     itf.shiftIn += shiftChange;
-     itf.shiftOut += shiftChange;
-
-     TransferFunction otf = outputTransferFunction.copy();
-     otf.ampIn += ampChange;
-     otf.ampOut += ampChange;
-     otf.shiftIn += shiftChange;
-     otf.shiftOut += shiftChange;
-
-     // TODO weights
-     Neuron neu = new Neuron( inputTransferFunction, outputTransferFunction );
-     for( NeuronOutput neuronOutput : neuronOutputs ) {
-     neu.addConnection( neuronOutput.neuron, neuronOutput.weight );
-     }
-     return neu;
-     }
-     */
     public void addLayer ( vax.snnt.neuronet.Layer layer ) {
         layers.add( layer );
     }

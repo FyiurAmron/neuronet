@@ -16,7 +16,8 @@ public /* abstract */ class TransferFunction implements DoubleUnaryOperator {
     public static enum FunctionType {
         Lin( x -> x ),
         Log( x -> ( x > 0 ) ? log( x + 1 ) : -log( -x + 1 ) ),
-        Exp( x -> ( x > 0 ) ? exp( x ) - 1 : -exp( -x ) + 1 ), //
+        Exp( x -> ( x > 0 ) ? exp( x ) - 1 : -exp( -x ) + 1 ),
+        Sin( x -> Math.sin( x ) ), //
         ;
         private final DoubleUnaryOperator lambda;
 

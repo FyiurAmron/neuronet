@@ -5,9 +5,9 @@ package vax.snnt.neuronet;
  @author toor
  */
 public class Neuron {
-    private final TransferFunction inputTransferFunction, outputTransferFunction;
+    public final TransferFunction inputTransferFunction, outputTransferFunction;
 
-    private double potential = 0;
+    private transient double potential = 0;
 
     public Neuron ( TransferFunction inputTransferFunction, TransferFunction outputTransferFunction ) {
         this.inputTransferFunction = inputTransferFunction;
